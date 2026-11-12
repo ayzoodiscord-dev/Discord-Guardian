@@ -8,10 +8,20 @@ const DEFAULT_GUILD_SETTINGS = Object.freeze({
   goodbyeChannelId: null,
   goodbyeMessage: "{user} a quitté **{server}**. Bonne continuation.",
   logChannelId: null,
+  eventLogsEnabled: false,
   antiRaidEnabled: false,
   antiRaidThreshold: 5,
   antiRaidWindowSeconds: 10,
   levelsEnabled: true,
+  vipRoleId: null,
+  vipChannelId: null,
+  automodEnabled: false,
+  automodLinks: false,
+  automodMentions: false,
+  automodMaxMentions: 5,
+  automodSpamThreshold: 5,
+  automodSpamWindowSeconds: 8,
+  automodBlockedWords: [],
 });
 
 function getLevel(totalXp) {
@@ -21,7 +31,7 @@ function getLevel(totalXp) {
 export class Store {
   constructor(filePath = process.env.DATA_FILE || "./data/bot-data.json") {
     this.filePath = resolve(filePath);
-    this.data = { guilds: {}, members: {}, warnings: {} };
+    this.data = { guilds: {}, members: {}, warnings: {}, giveaways: {} };
     this.pendingWrite = Promise.resolve();
   }
 
@@ -34,6 +44,7 @@ export class Store {
         guilds: loaded.guilds ?? {},
         members: loaded.members ?? {},
         warnings: loaded.warnings ?? {},
+        giveaways: loaded.giveaways ?? {},
       };
     } catch (error) {
       if (error?.code !== "ENOENT") {
@@ -158,5 +169,187 @@ export class Store {
     delete this.data.warnings[warningId];
     await this.save();
     return true;
+  }
+
+  async createGiveaway({ guildId, channelId, prize, winnersCount, endsAt, hostId }) {
+    const id = randomUUID().replaceAll("-", "").slice(0, 12);
+    const giveaway = {
+      id,
+      guildId,
+      channelId,
+      messageId: null,
+      prize,
+      winnersCount,
+      endsAt,
+      hostId,
+      entries: [],
+      winners: [],
+      ended: false,
+      endedAt: null,
+    };
+    this.data.giveaways[id] = giveaway;
+    await this.save();
+    return giveaway;
+  }
+
+  getGiveaway(guildId, id) {
+    const giveaway = this.data.giveaways[id];
+    return giveaway?.guildId === guildId ? giveaway : null;
+  }
+
+  getActiveGiveaways() {
+    return Object.values(this.data.giveaways).filter((giveaway) => !giveaway.ended);
+  }
+
+  async setGiveawayMessageId(guildId, id, messageId) {
+    const giveaway = this.getGiveaway(guildId, id);
+    if (!giveaway) return null;
+    giveaway.messageId = messageId;
+    await this.save();
+    return giveaway;
+  }
+
+  async deleteGiveaway(guildId, id) {
+    const giveaway = this.getGiveaway(guildId, id);
+    if (!giveaway) return false;
+    delete this.data.giveaways[id];
+    await this.save();
+    return true;
+  }
+
+  async toggleGiveawayEntry(guildId, id, userId) {
+    const giveaway = this.getGiveaway(guildId, id);
+    if (!giveaway || giveaway.ended) return null;
+    const existingIndex = giveaway.entries.indexOf(userId);
+    if (existingIndex >= 0) {
+      giveaway.entries.splice(existingIndex, 1);
+      await this.save();
+      return { entered: false, giveaway };
+    }
+    giveaway.entries.push(userId);
+    await this.save();
+    return { entered: true, giveaway };
+  }
+
+  async finishGiveaway(guildId, id, { reroll = false } = {}) {
+    const giveaway = this.getGiveaway(guildId, id);
+    if (!giveaway || (reroll ? !giveaway.ended : giveaway.ended)) return null;
+    const excluded = reroll ? new Set(giveaway.winners) : new Set();
+    const candidates = giveaway.entries.filter((userId) => !excluded.has(userId));
+    if (reroll && candidates.length === 0) return null;
+    for (let index = candidates.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [candidates[index], candidates[swapIndex]] = [candidates[swapIndex], candidates[index]];
+    }
+    giveaway.winners = candidates.slice(0, giveaway.winnersCount);
+    if (!reroll) {
+      giveaway.ended = true;
+      giveaway.endedAt = Date.now();
+    }
+    await this.save();
+    return giveaway;
+  }
+
+  exportGuildBackup(guildId) {
+    return {
+      format: "discord-bot-server-backup",
+      version: 1,
+      guildId,
+      createdAt: Date.now(),
+      settings: this.getGuildSettings(guildId),
+      members: Object.values(this.data.members).filter((member) => member.guildId === guildId),
+      warnings: Object.values(this.data.warnings).filter((warning) => warning.guildId === guildId),
+      giveaways: Object.values(this.data.giveaways).filter((giveaway) => giveaway.guildId === guildId),
+    };
+  }
+
+  async restoreGuildBackup(guildId, backup) {
+    if (
+      !backup
+      || backup.format !== "discord-bot-server-backup"
+      || backup.version !== 1
+      || backup.guildId !== guildId
+      || !backup.settings
+      || !Array.isArray(backup.members)
+      || !Array.isArray(backup.warnings)
+      || !Array.isArray(backup.giveaways)
+    ) {
+      throw new Error("Le fichier n'est pas une sauvegarde valide de ce serveur.");
+    }
+
+    const safeSettings = { ...DEFAULT_GUILD_SETTINGS };
+    for (const key of Object.keys(DEFAULT_GUILD_SETTINGS)) {
+      const value = backup.settings[key];
+      const fallback = DEFAULT_GUILD_SETTINGS[key];
+      if (Array.isArray(fallback) && Array.isArray(value)) {
+        safeSettings[key] = value.filter((item) => typeof item === "string").slice(0, 100);
+      } else if (fallback === null && (value === null || typeof value === "string")) {
+        safeSettings[key] = value;
+      } else if (typeof fallback === "boolean" && typeof value === "boolean") {
+        safeSettings[key] = value;
+      } else if (typeof fallback === "number" && Number.isFinite(value)) {
+        safeSettings[key] = value;
+      } else if (typeof fallback === "string" && typeof value === "string") {
+        safeSettings[key] = value.slice(0, 1000);
+      }
+    }
+    const safeMembers = backup.members.filter((member) =>
+      member.guildId === guildId
+      && typeof member.userId === "string"
+      && Number.isFinite(member.xp)
+      && Number.isFinite(member.messages),
+    );
+    const safeWarnings = backup.warnings.filter((warning) =>
+      warning.guildId === guildId
+      && typeof warning.id === "string"
+      && typeof warning.userId === "string"
+      && typeof warning.moderatorId === "string"
+      && typeof warning.reason === "string",
+    );
+    const safeGiveaways = backup.giveaways.filter((giveaway) =>
+      giveaway.guildId === guildId
+      && typeof giveaway.id === "string"
+      && typeof giveaway.channelId === "string"
+      && typeof giveaway.prize === "string"
+      && giveaway.prize.length <= 200
+      && typeof giveaway.hostId === "string"
+      && Number.isInteger(giveaway.winnersCount)
+      && giveaway.winnersCount >= 1
+      && giveaway.winnersCount <= 20
+      && Number.isFinite(giveaway.endsAt)
+      && Array.isArray(giveaway.entries),
+    );
+
+    this.data.guilds[guildId] = { ...DEFAULT_GUILD_SETTINGS, ...safeSettings };
+    for (const [key, member] of Object.entries(this.data.members)) {
+      if (member.guildId === guildId) delete this.data.members[key];
+    }
+    for (const [id, warning] of Object.entries(this.data.warnings)) {
+      if (warning.guildId === guildId) delete this.data.warnings[id];
+    }
+    for (const [id, giveaway] of Object.entries(this.data.giveaways)) {
+      if (giveaway.guildId === guildId) delete this.data.giveaways[id];
+    }
+
+    for (const member of safeMembers) {
+      this.data.members[`${guildId}:${member.userId}`] = {
+        guildId,
+        userId: member.userId,
+        xp: Math.max(0, member.xp),
+        messages: Math.max(0, member.messages),
+        lastXpAt: Number.isFinite(member.lastXpAt) ? member.lastXpAt : 0,
+      };
+    }
+    for (const warning of safeWarnings) this.data.warnings[warning.id] = warning;
+    for (const giveaway of safeGiveaways) {
+      this.data.giveaways[giveaway.id] = {
+        ...giveaway,
+        entries: giveaway.entries.filter((id) => typeof id === "string").slice(0, 100_000),
+        winners: Array.isArray(giveaway.winners) ? giveaway.winners.filter((id) => typeof id === "string").slice(0, 20) : [],
+        ended: Boolean(giveaway.ended),
+        endedAt: Number.isFinite(giveaway.endedAt) ? giveaway.endedAt : null,
+      };
+    }
+    await this.save();
   }
 }

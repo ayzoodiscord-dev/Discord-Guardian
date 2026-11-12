@@ -3,14 +3,24 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  Partials,
   REST,
   Routes,
 } from "discord.js";
+import automodCommand from "./commands/automod.js";
+import backupCommand from "./commands/backup.js";
+import botControlCommand from "./commands/botControl.js";
 import configCommand from "./commands/config.js";
+import giveawayCommand, { scheduleExistingGiveaways } from "./commands/giveaway.js";
 import gamesCommand from "./commands/games.js";
 import informationCommand from "./commands/information.js";
 import levelsCommand from "./commands/levels.js";
 import moderationCommand from "./commands/moderation.js";
+import serverConfigCommand from "./commands/serverConfig.js";
+import utilitiesCommand from "./commands/utilities.js";
+import vipCommand from "./commands/vip.js";
+import { handleAutomodMessage } from "./events/automod.js";
+import { registerGuildLogs } from "./events/guildLogs.js";
 import { registerMemberEvents } from "./events/memberEvents.js";
 import { Store } from "./services/store.js";
 import { createEmbed } from "./utils/embeds.js";
@@ -27,6 +37,13 @@ const commands = [
   gamesCommand,
   informationCommand,
   levelsCommand,
+  giveawayCommand,
+  backupCommand,
+  automodCommand,
+  vipCommand,
+  botControlCommand,
+  serverConfigCommand,
+  utilitiesCommand,
 ];
 const commandMap = new Map(
   commands.flatMap((command) => {
@@ -41,7 +58,9 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildModeration,
   ],
+  partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
 });
 const store = await new Store().load();
 
@@ -63,6 +82,7 @@ async function registerCommands() {
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.info(`Connecté en tant que ${readyClient.user.tag}.`);
+  scheduleExistingGiveaways(client, store);
   try {
     await registerCommands();
   } catch (error) {
@@ -71,6 +91,21 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
+  if (interaction.isButton()) {
+    try {
+      if (await backupCommand.handleButton(interaction, { client, store })) return;
+      if (await giveawayCommand.handleButton(interaction, { client, store })) return;
+    } catch (error) {
+      console.error("Erreur dans une interaction par bouton :", error);
+      const message = "Cette action n'a pas pu être exécutée. Réessaie.";
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: message, ephemeral: true }).catch(() => {});
+      } else {
+        await interaction.reply({ content: message, ephemeral: true }).catch(() => {});
+      }
+    }
+    return;
+  }
   if (!interaction.isChatInputCommand()) return;
   const command = commandMap.get(interaction.commandName);
   if (!command) return;
@@ -89,6 +124,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 client.on(Events.MessageCreate, async (message) => {
   if (!message.guild || message.author.bot) return;
+  if (await handleAutomodMessage(message, store)) return;
   const settings = store.getGuildSettings(message.guild.id);
   if (!settings.levelsEnabled) return;
   try {
@@ -103,6 +139,7 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 registerMemberEvents(client, store);
+registerGuildLogs(client, store);
 
 client.on(Events.Error, (error) => console.error("Erreur Discord :", error));
 process.on("unhandledRejection", (error) => console.error("Erreur asynchrone non gérée :", error));

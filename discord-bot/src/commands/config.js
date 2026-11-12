@@ -59,6 +59,27 @@ const data = new SlashCommandBuilder()
   )
   .addSubcommand((command) =>
     command
+      .setName("eventlogs")
+      .setDescription("Active ou désactive les journaux d'événements")
+      .addBooleanOption((option) =>
+        option.setName("active").setDescription("Journaliser les suppressions, modifications et changements de rôles").setRequired(true),
+      ),
+  )
+  .addSubcommand((command) =>
+    command
+      .setName("vip")
+      .setDescription("Configure le rôle VIP et son salon d'annonces")
+      .addRoleOption((option) => option.setName("role").setDescription("Rôle VIP").setRequired(true))
+      .addChannelOption((option) =>
+        option
+          .setName("salon")
+          .setDescription("Salon où les membres VIP peuvent publier")
+          .addChannelTypes(ChannelType.GuildText)
+          .setRequired(true),
+      ),
+  )
+  .addSubcommand((command) =>
+    command
       .setName("antiraid")
       .setDescription("Active ou configure la protection contre les arrivées groupées")
       .addBooleanOption((option) =>
@@ -127,6 +148,28 @@ async function execute(interaction, { store }) {
     });
   }
 
+  if (subcommand === "eventlogs") {
+    const enabled = interaction.options.getBoolean("active", true);
+    await store.updateGuildSettings(interaction.guildId, { eventLogsEnabled: enabled });
+    return respond(interaction, {
+      embeds: [createEmbed("Journaux d'événements", `Les journaux détaillés sont maintenant ${enabled ? "activés" : "désactivés"}.`)],
+      ephemeral: true,
+    });
+  }
+
+  if (subcommand === "vip") {
+    const role = interaction.options.getRole("role", true);
+    const channel = interaction.options.getChannel("salon", true);
+    await store.updateGuildSettings(interaction.guildId, {
+      vipRoleId: role.id,
+      vipChannelId: channel.id,
+    });
+    return respond(interaction, {
+      embeds: [createEmbed("Espace VIP configuré", `Rôle : ${role}\nSalon d'annonces : ${channel}\nLes membres ayant ce rôle peuvent utiliser \`/vip annonce\`.`)],
+      ephemeral: true,
+    });
+  }
+
   if (subcommand === "antiraid") {
     const enabled = interaction.options.getBoolean("active", true);
     const threshold = interaction.options.getInteger("seuil") ?? current.antiRaidThreshold;
@@ -166,8 +209,12 @@ async function execute(interaction, { store }) {
           `Bienvenue : ${current.welcomeChannelId ? `<#${current.welcomeChannelId}>` : "non configuré"}`,
           `Départ : ${current.goodbyeChannelId ? `<#${current.goodbyeChannelId}>` : "non configuré"}`,
           `Logs : ${current.logChannelId ? `<#${current.logChannelId}>` : "non configuré"}`,
+          `Journaux détaillés : ${current.eventLogsEnabled ? "actifs" : "inactifs"}`,
           `Anti-raid : ${current.antiRaidEnabled ? `actif (${current.antiRaidThreshold} arrivées / ${current.antiRaidWindowSeconds}s)` : "inactif"}`,
+          `Auto-modération : ${current.automodEnabled ? "active" : "inactive"}`,
           `Niveaux : ${current.levelsEnabled ? "actifs" : "inactifs"}`,
+          `Rôle VIP : ${current.vipRoleId ? `<@&${current.vipRoleId}>` : "non configuré"}`,
+          `Salon VIP : ${current.vipChannelId ? `<#${current.vipChannelId}>` : "non configuré"}`,
         ].join("\n"),
       ),
     ],

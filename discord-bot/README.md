@@ -7,20 +7,26 @@ Bot Discord en JavaScript, prêt à installer sur un hébergeur de bots Node.js.
 1. Crée une application et un bot dans le [portail développeur Discord](https://discord.com/developers/applications).
 2. Dans **Bot**, active les intents privilégiés **Server Members Intent** et **Message Content Intent**. Ils servent aux messages de bienvenue/départ et au système de niveaux.
 3. Invite le bot avec les scopes `bot` et `applications.commands`. Accorde uniquement les permissions nécessaires aux fonctionnalités que tu actives : gérer les messages, expulser/bannir, modérer les membres et gérer les salons.
-4. Dans ce dossier, crée `.env` à partir de `.env.example`, puis renseigne `DISCORD_TOKEN` et `DISCORD_CLIENT_ID`. Ne partage jamais le token.
+4. Dans ce dossier, crée `.env` à partir de `.env.example`, puis renseigne `DISCORD_TOKEN` et `DISCORD_CLIENT_ID`. `BOT_OWNER_ID` est facultatif et réserve le changement de présence à ton compte. Ne partage jamais le token.
 5. Lance `npm install`, puis `npm start`. Les commandes slash sont enregistrées automatiquement au démarrage. Pour un serveur de test, renseigne aussi `DISCORD_GUILD_ID` dans `.env`.
 
 Sur un hébergeur, choisis Node.js 20 ou plus récent, installe les dépendances avec `npm install` et utilise `npm start` comme commande de démarrage. Configure les variables d'environnement dans l'espace sécurisé de l'hébergeur plutôt que dans le code.
 
 ## Commandes
 
-- **Configuration** — `/config welcome`, `/config goodbye`, `/config logs`, `/config antiraid`, `/config levels`, `/config view`
+- **Configuration** — `/config welcome`, `/config goodbye`, `/config logs`, `/config eventlogs`, `/config vip`, `/config antiraid`, `/config levels`, `/config view`; `/serverconfig summary` et `/serverconfig verification`
+- **Auto-modération** — `/automod config` règle le filtre de liens, les mentions groupées et l'anti-spam; `/automod mots` gère la liste de mots filtrés
 - **Modération** — `/kick`, `/ban`, `/timeout`, `/untimeout`, `/warn`, `/warnings`, `/unwarn`, `/purge`, `/slowmode`, `/lock`, `/unlock`
 - **Niveaux et profils** — `/profil`, `/classement`; l'XP est attribuée automatiquement aux messages avec un délai anti-spam
-- **Informations et outils** — `/help`, `/ping`, `/serverinfo`, `/userinfo`, `/avatar`, `/botinfo`, `/invite`, `/sondage`
+- **Giveaways** — `/giveaway start`, `/giveaway end`, `/giveaway reroll`, `/giveaway list`; les participations sont enregistrées et les tirages se terminent automatiquement
+- **VIP** — `/config vip` définit le rôle et le salon; `/vip annonce` est réservé à ce rôle
+- **Sauvegardes** — `/backup export` télécharge les données du bot pour ce serveur; `/backup restore` demande une confirmation avant de remplacer les réglages, niveaux, avertissements et giveaways. Cela ne restaure pas la structure Discord (salons ou rôles).
+- **Bot et outils** — `/botcontrol status`, `/botcontrol presence`, `/choisir`, `/random`, `/calcul`, `/timestamp`, `/help`, `/ping`, `/serverinfo`, `/userinfo`, `/avatar`, `/botinfo`, `/invite`, `/sondage`
 - **Jeux** — `/pileouface`, `/de`, `/8ball`, `/shifumi`
 
 Les embeds utilisent la couleur `#FFFFFF`. Les cartes de profil, d'arrivée et de départ sont dessinées avec Canvas dans une palette bleue inspirée de l'exemple fourni.
+
+Les journaux d'événements (`/config eventlogs`) sont désactivés par défaut et peuvent contenir le texte des messages supprimés ou modifiés. Active-les seulement si les règles de ton serveur l'autorisent. Les filtres d'auto-modération sont également désactivés par défaut. Le changement de présence du bot est global et limité à `BOT_OWNER_ID`.
 
 ## Anti-raid et données
 

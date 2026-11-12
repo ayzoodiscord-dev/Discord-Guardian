@@ -37,10 +37,11 @@ async function execute(interaction, { client }) {
   if (command === "help") {
     const embed = createEmbed("Commandes disponibles", "Utilise les commandes slash en commençant par `/`.")
       .addFields(
-        { name: "Configuration", value: "`/config` — messages, logs, anti-raid et niveaux", inline: false },
+        { name: "Configuration", value: "`/config` — messages, journaux, VIP, anti-raid et niveaux · `/serverconfig` — vérification Discord · `/automod` — filtres de messages", inline: false },
         { name: "Modération", value: "`/kick` `/ban` `/timeout` `/untimeout` `/warn` `/warnings` `/unwarn` `/purge` `/slowmode` `/lock` `/unlock`", inline: false },
         { name: "Niveaux", value: "`/profil` `/classement` — XP automatique sur les messages", inline: false },
-        { name: "Informations et outils", value: "`/ping` `/serverinfo` `/userinfo` `/avatar` `/botinfo` `/invite` `/sondage`", inline: false },
+        { name: "VIP, bot et sauvegardes", value: "`/vip` `/botcontrol` `/backup` `/giveaway`", inline: false },
+        { name: "Informations et outils", value: "`/ping` `/serverinfo` `/userinfo` `/avatar` `/botinfo` `/invite` `/sondage` `/choisir` `/random` `/calcul` `/timestamp`", inline: false },
         { name: "Jeux", value: "`/pileouface` `/de` `/8ball` `/shifumi`", inline: false },
       );
     return respond(interaction, { embeds: [embed], ephemeral: true });
