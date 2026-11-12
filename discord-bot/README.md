@@ -6,7 +6,7 @@ Bot Discord en JavaScript, prêt à installer sur un hébergeur de bots Node.js.
 
 1. Crée une application et un bot dans le [portail développeur Discord](https://discord.com/developers/applications).
 2. Dans **Bot**, active les intents privilégiés **Server Members Intent** et **Message Content Intent**. Ils servent aux messages de bienvenue/départ et au système de niveaux.
-3. Invite le bot avec les scopes `bot` et `applications.commands`. Accorde uniquement les permissions nécessaires aux fonctionnalités que tu actives : gérer les messages, expulser/bannir, modérer les membres et gérer les salons.
+3. Invite le bot avec les scopes `bot` et `applications.commands`. Accorde uniquement les permissions nécessaires aux fonctionnalités que tu actives : gérer les messages, expulser/bannir, modérer les membres, gérer les salons et gérer les rôles pour l'autorole.
 4. Dans ce dossier, crée `.env` à partir de `.env.example`, puis renseigne `DISCORD_TOKEN` et `DISCORD_CLIENT_ID`. `BOT_OWNER_ID` est facultatif et réserve le changement de présence à ton compte. Ne partage jamais le token.
 5. Lance `npm install`, puis `npm start`. Les commandes slash sont enregistrées automatiquement au démarrage. Pour un serveur de test, renseigne aussi `DISCORD_GUILD_ID` dans `.env`.
 
@@ -19,8 +19,10 @@ Sur un hébergeur, choisis Node.js 20 ou plus récent, installe les dépendances
 - **Modération** — `/kick`, `/ban`, `/timeout`, `/untimeout`, `/warn`, `/warnings`, `/unwarn`, `/purge`, `/slowmode`, `/lock`, `/unlock`
 - **Niveaux et profils** — `/profil`, `/classement`; l'XP est attribuée automatiquement aux messages avec un délai anti-spam
 - **Giveaways** — `/giveaway start`, `/giveaway end`, `/giveaway reroll`, `/giveaway list`; les participations sont enregistrées et les tirages se terminent automatiquement
+- **Tickets** — `/ticket config` règle l'équipe support et la catégorie, `/ticket create` ouvre un salon privé, `/ticket close` et `/ticket reopen` le ferment ou le rouvrent, `/ticket list` affiche les tickets récents à l'équipe
+- **Rôles automatiques** — `/autorole set`, `/autorole disable`, `/autorole status`; le rôle ne sera pas attribué aux nouveaux arrivants détectés pendant un raid
 - **VIP** — `/config vip` définit le rôle et le salon; `/vip annonce` est réservé à ce rôle
-- **Sauvegardes** — `/backup export` télécharge les données du bot pour ce serveur; `/backup restore` demande une confirmation avant de remplacer les réglages, niveaux, avertissements et giveaways. Cela ne restaure pas la structure Discord (salons ou rôles).
+- **Sauvegardes** — `/backup export` télécharge les données du bot pour ce serveur; `/backup restore` demande une confirmation avant de remplacer les réglages, niveaux, avertissements, tickets et giveaways. Cela ne restaure pas la structure Discord (salons ou rôles).
 - **Bot et outils** — `/botcontrol status`, `/botcontrol presence`, `/choisir`, `/random`, `/calcul`, `/timestamp`, `/help`, `/ping`, `/serverinfo`, `/userinfo`, `/avatar`, `/botinfo`, `/invite`, `/sondage`
 - **Jeux** — `/pileouface`, `/de`, `/8ball`, `/shifumi`
 

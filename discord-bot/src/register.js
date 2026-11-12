@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { REST, Routes } from "discord.js";
 import automodCommand from "./commands/automod.js";
+import autoroleCommand from "./commands/autorole.js";
 import backupCommand from "./commands/backup.js";
 import botControlCommand from "./commands/botControl.js";
 import configCommand from "./commands/config.js";
@@ -10,6 +11,7 @@ import informationCommand from "./commands/information.js";
 import levelsCommand from "./commands/levels.js";
 import moderationCommand from "./commands/moderation.js";
 import serverConfigCommand from "./commands/serverConfig.js";
+import ticketCommand from "./commands/tickets.js";
 import utilitiesCommand from "./commands/utilities.js";
 import vipCommand from "./commands/vip.js";
 
@@ -30,9 +32,11 @@ const commands = [
   giveawayCommand.data,
   backupCommand.data,
   automodCommand.data,
+  autoroleCommand.data,
   vipCommand.data,
   botControlCommand.data,
   serverConfigCommand.data,
+  ticketCommand.data,
   ...utilitiesCommand.data,
 ];
 

@@ -29,6 +29,7 @@ export function registerMemberEvents(client, store) {
   client.on("guildMemberAdd", async (member) => {
     const settings = store.getGuildSettings(member.guild.id);
     const now = Date.now();
+    let raidDetected = false;
 
     if (settings.antiRaidEnabled) {
       const previous = joins.get(member.guild.id) ?? [];
@@ -38,6 +39,7 @@ export function registerMemberEvents(client, store) {
       joins.set(member.guild.id, recent);
 
       if (recent.length >= settings.antiRaidThreshold) {
+        raidDetected = true;
         try {
           await member.timeout(10 * 60_000, "Anti-raid : arrivée groupée détectée");
           const message = `Arrivée groupée détectée : ${recent.length} membres en ${settings.antiRaidWindowSeconds} secondes. Timeout de 10 minutes appliqué à ${member.user.tag}.`;
@@ -46,6 +48,21 @@ export function registerMemberEvents(client, store) {
           console.error(`Le timeout anti-raid a échoué pour ${member.user.tag} :`, error);
           await sendToChannel(member.guild, settings.logChannelId, {
             embeds: [createEmbed("Alerte anti-raid", `Arrivée groupée détectée (${recent.length} membres en ${settings.antiRaidWindowSeconds} secondes), mais le timeout de ${member.user.tag} a échoué. Vérifie la hiérarchie des rôles et les permissions du bot.`)],
+          });
+        }
+      }
+    }
+
+    if (settings.autoRoleId && !raidDetected && !member.user.bot) {
+      const role = member.guild.roles.cache.get(settings.autoRoleId);
+      const botMember = member.guild.members.me;
+      if (role && botMember && !role.managed && role.position < botMember.roles.highest.position) {
+        try {
+          await member.roles.add(role, "Rôle automatique configuré par le serveur");
+        } catch (error) {
+          console.error(`Le rôle automatique n'a pas pu être attribué à ${member.user.tag} :`, error);
+          await sendToChannel(member.guild, settings.logChannelId, {
+            embeds: [createEmbed("Rôle automatique impossible", `Le rôle configuré n'a pas pu être attribué à ${member.user.tag}. Vérifie la permission Gérer les rôles et la position du rôle du bot.`)],
           });
         }
       }

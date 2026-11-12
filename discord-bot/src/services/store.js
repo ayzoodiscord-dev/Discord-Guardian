@@ -15,6 +15,9 @@ const DEFAULT_GUILD_SETTINGS = Object.freeze({
   levelsEnabled: true,
   vipRoleId: null,
   vipChannelId: null,
+  ticketStaffRoleId: null,
+  ticketCategoryId: null,
+  autoRoleId: null,
   automodEnabled: false,
   automodLinks: false,
   automodMentions: false,
@@ -31,7 +34,7 @@ function getLevel(totalXp) {
 export class Store {
   constructor(filePath = process.env.DATA_FILE || "./data/bot-data.json") {
     this.filePath = resolve(filePath);
-    this.data = { guilds: {}, members: {}, warnings: {}, giveaways: {} };
+    this.data = { guilds: {}, members: {}, warnings: {}, giveaways: {}, tickets: {} };
     this.pendingWrite = Promise.resolve();
   }
 
@@ -45,6 +48,7 @@ export class Store {
         members: loaded.members ?? {},
         warnings: loaded.warnings ?? {},
         giveaways: loaded.giveaways ?? {},
+        tickets: loaded.tickets ?? {},
       };
     } catch (error) {
       if (error?.code !== "ENOENT") {
@@ -260,6 +264,7 @@ export class Store {
       members: Object.values(this.data.members).filter((member) => member.guildId === guildId),
       warnings: Object.values(this.data.warnings).filter((warning) => warning.guildId === guildId),
       giveaways: Object.values(this.data.giveaways).filter((giveaway) => giveaway.guildId === guildId),
+      tickets: Object.values(this.data.tickets).filter((ticket) => ticket.guildId === guildId),
     };
   }
 
@@ -273,6 +278,7 @@ export class Store {
       || !Array.isArray(backup.members)
       || !Array.isArray(backup.warnings)
       || !Array.isArray(backup.giveaways)
+      || (backup.tickets != null && !Array.isArray(backup.tickets))
     ) {
       throw new Error("Le fichier n'est pas une sauvegarde valide de ce serveur.");
     }
@@ -319,6 +325,15 @@ export class Store {
       && Number.isFinite(giveaway.endsAt)
       && Array.isArray(giveaway.entries),
     );
+    const safeTickets = (backup.tickets ?? []).filter((ticket) =>
+      ticket.guildId === guildId
+      && typeof ticket.id === "string"
+      && typeof ticket.channelId === "string"
+      && typeof ticket.userId === "string"
+      && typeof ticket.subject === "string"
+      && ["open", "closed"].includes(ticket.status)
+      && Number.isFinite(ticket.createdAt),
+    );
 
     this.data.guilds[guildId] = { ...DEFAULT_GUILD_SETTINGS, ...safeSettings };
     for (const [key, member] of Object.entries(this.data.members)) {
@@ -329,6 +344,9 @@ export class Store {
     }
     for (const [id, giveaway] of Object.entries(this.data.giveaways)) {
       if (giveaway.guildId === guildId) delete this.data.giveaways[id];
+    }
+    for (const [id, ticket] of Object.entries(this.data.tickets)) {
+      if (ticket.guildId === guildId) delete this.data.tickets[id];
     }
 
     for (const member of safeMembers) {
@@ -350,6 +368,70 @@ export class Store {
         endedAt: Number.isFinite(giveaway.endedAt) ? giveaway.endedAt : null,
       };
     }
+    for (const ticket of safeTickets) {
+      this.data.tickets[ticket.id] = {
+        ...ticket,
+        closedAt: Number.isFinite(ticket.closedAt) ? ticket.closedAt : null,
+        closedBy: typeof ticket.closedBy === "string" ? ticket.closedBy : null,
+      };
+    }
     await this.save();
+  }
+
+  async createTicket({ id, guildId, channelId, userId, subject }) {
+    const ticket = {
+      id: id ?? randomUUID().replaceAll("-", "").slice(0, 12),
+      guildId,
+      channelId,
+      userId,
+      subject,
+      status: "open",
+      createdAt: Date.now(),
+      closedAt: null,
+      closedBy: null,
+    };
+    this.data.tickets[ticket.id] = ticket;
+    await this.save();
+    return ticket;
+  }
+
+  getTicket(guildId, id) {
+    const ticket = this.data.tickets[id];
+    return ticket?.guildId === guildId ? ticket : null;
+  }
+
+  getTicketByChannel(guildId, channelId) {
+    return Object.values(this.data.tickets).find((ticket) =>
+      ticket.guildId === guildId && ticket.channelId === channelId,
+    ) ?? null;
+  }
+
+  getOpenTicketForUser(guildId, userId) {
+    return Object.values(this.data.tickets).find((ticket) =>
+      ticket.guildId === guildId && ticket.userId === userId && ticket.status === "open",
+    ) ?? null;
+  }
+
+  getTicketsForGuild(guildId, limit = 20) {
+    return Object.values(this.data.tickets)
+      .filter((ticket) => ticket.guildId === guildId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit);
+  }
+
+  async updateTicket(guildId, id, changes) {
+    const ticket = this.getTicket(guildId, id);
+    if (!ticket) return null;
+    Object.assign(ticket, changes);
+    await this.save();
+    return ticket;
+  }
+
+  async deleteTicket(guildId, id) {
+    const ticket = this.getTicket(guildId, id);
+    if (!ticket) return false;
+    delete this.data.tickets[id];
+    await this.save();
+    return true;
   }
 }

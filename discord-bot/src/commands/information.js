@@ -38,6 +38,7 @@ async function execute(interaction, { client }) {
     const embed = createEmbed("Commandes disponibles", "Utilise les commandes slash en commençant par `/`.")
       .addFields(
         { name: "Configuration", value: "`/config` — messages, journaux, VIP, anti-raid et niveaux · `/serverconfig` — vérification Discord · `/automod` — filtres de messages", inline: false },
+        { name: "Tickets et rôles", value: "`/ticket config` `/ticket create` `/ticket close` `/ticket reopen` `/ticket list` · `/autorole set` `/autorole disable` `/autorole status`", inline: false },
         { name: "Modération", value: "`/kick` `/ban` `/timeout` `/untimeout` `/warn` `/warnings` `/unwarn` `/purge` `/slowmode` `/lock` `/unlock`", inline: false },
         { name: "Niveaux", value: "`/profil` `/classement` — XP automatique sur les messages", inline: false },
         { name: "VIP, bot et sauvegardes", value: "`/vip` `/botcontrol` `/backup` `/giveaway`", inline: false },
@@ -113,6 +114,7 @@ async function execute(interaction, { client }) {
       PermissionFlagsBits.BanMembers,
       PermissionFlagsBits.ModerateMembers,
       PermissionFlagsBits.ManageChannels,
+      PermissionFlagsBits.ManageRoles,
     ];
     const query = new URLSearchParams({
       client_id: client.user.id,

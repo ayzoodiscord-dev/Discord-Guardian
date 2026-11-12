@@ -8,6 +8,7 @@ import {
   Routes,
 } from "discord.js";
 import automodCommand from "./commands/automod.js";
+import autoroleCommand from "./commands/autorole.js";
 import backupCommand from "./commands/backup.js";
 import botControlCommand from "./commands/botControl.js";
 import configCommand from "./commands/config.js";
@@ -17,6 +18,7 @@ import informationCommand from "./commands/information.js";
 import levelsCommand from "./commands/levels.js";
 import moderationCommand from "./commands/moderation.js";
 import serverConfigCommand from "./commands/serverConfig.js";
+import ticketCommand from "./commands/tickets.js";
 import utilitiesCommand from "./commands/utilities.js";
 import vipCommand from "./commands/vip.js";
 import { handleAutomodMessage } from "./events/automod.js";
@@ -40,9 +42,11 @@ const commands = [
   giveawayCommand,
   backupCommand,
   automodCommand,
+  autoroleCommand,
   vipCommand,
   botControlCommand,
   serverConfigCommand,
+  ticketCommand,
   utilitiesCommand,
 ];
 const commandMap = new Map(
@@ -95,6 +99,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     try {
       if (await backupCommand.handleButton(interaction, { client, store })) return;
       if (await giveawayCommand.handleButton(interaction, { client, store })) return;
+      if (await ticketCommand.handleButton(interaction, { client, store })) return;
     } catch (error) {
       console.error("Erreur dans une interaction par bouton :", error);
       const message = "Cette action n'a pas pu être exécutée. Réessaie.";

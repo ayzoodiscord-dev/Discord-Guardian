@@ -215,6 +215,8 @@ async function execute(interaction, { store }) {
           `Niveaux : ${current.levelsEnabled ? "actifs" : "inactifs"}`,
           `Rôle VIP : ${current.vipRoleId ? `<@&${current.vipRoleId}>` : "non configuré"}`,
           `Salon VIP : ${current.vipChannelId ? `<#${current.vipChannelId}>` : "non configuré"}`,
+          `Rôle support : ${current.ticketStaffRoleId ? `<@&${current.ticketStaffRoleId}>` : "non configuré"}`,
+          `Rôle automatique : ${current.autoRoleId ? `<@&${current.autoRoleId}>` : "non configuré"}`,
         ].join("\n"),
       ),
     ],
